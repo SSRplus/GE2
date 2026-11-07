@@ -16,6 +16,11 @@ on:
 permissions:
   contents: read
 
+# a newer push replaces an older run that is still going (these runs are long)
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   runtime-test:
     runs-on: ubuntu-latest
@@ -253,14 +258,14 @@ jobs:
           python converter/test_cli.py
           GAME_CODE=game python converter/test_vita_api.py
       - name: Lifter - differential test vs Unicorn (real game encodings)
-        if: steps.fin.outputs.have_game == 'true' && steps.liftdeps.outcome == 'success' && github.event_name == 'workflow_dispatch'
+        if: steps.fin.outputs.have_game == 'true' && steps.liftdeps.outcome == 'success'
         continue-on-error: true
         timeout-minutes: 30
         run: |
           python converter/difftest.py --app game/app --patch game/patch --out out/difftest.txt
           python converter/difftest_fn.py --app game/app --patch game/patch --out out/difftest_fn.txt
       - name: Lifter - instruction coverage over the whole game
-        if: steps.fin.outputs.have_game == 'true' && steps.liftdeps.outcome == 'success' && github.event_name == 'workflow_dispatch'
+        if: steps.fin.outputs.have_game == 'true' && steps.liftdeps.outcome == 'success'
         continue-on-error: true
         timeout-minutes: 45
         run: python converter/lift.py coverage --app game/app --patch game/patch --jobs 4 2>&1 | tee out/lift_coverage.txt
@@ -272,7 +277,7 @@ jobs:
           gcc -fsyntax-only -Wall -Wno-unused-label -Wno-unused-variable -Iruntime/include out/gen/god_m000_Boot.c 2>&1 | head -80 | tee out/gen_syntax.txt
       # ---- Stage 4: first boot. Lift EVERY module to C, compile natively, run module_start. Manual runs only (long). ----
       - name: Boot - lift all modules, build the native runner, run the game's module_start
-        if: steps.fin.outputs.have_game == 'true' && steps.liftdeps.outcome == 'success' && github.event_name == 'workflow_dispatch'
+        if: steps.fin.outputs.have_game == 'true' && steps.liftdeps.outcome == 'success'
         continue-on-error: true
         timeout-minutes: 120
         run: |
